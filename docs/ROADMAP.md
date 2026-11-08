@@ -15,3 +15,9 @@
 - [ ] Add Android share intents and official YouTube player handoff.
 - [ ] Add data-saver and storage controls.
 - [ ] Test offline behavior and remote-service failure behavior.
+
+- [ ] Create dedicated Supabase project and apply `supabase/migrations/0001_initial_schema.sql`.
+- [ ] Create Firebase FCM project/app registration (no Firebase Auth or Firestore required).
+- [ ] Add FCM token lifecycle, notification channels and Android 13+ permission handling.
+- [ ] Deploy Supabase push Edge Function, configure secrets and Database Webhook.
+- [ ] Add notification preferences, in-app inbox, and deep-link routing.
