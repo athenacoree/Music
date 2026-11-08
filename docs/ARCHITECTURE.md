@@ -45,3 +45,8 @@ The Android app must remain useful when every remote service is unavailable.
 
 ## YouTube
 Use the official YouTube player/embed for YouTube URLs. Do not extract audio, download/cache YouTube audiovisual streams, or provide background playback through the YouTube player. Native downloads and background playback are reserved for media with appropriate rights and direct authorized sources.
+
+
+## Push notifications
+For signed-in users, Android push delivery uses Firebase Cloud Messaging (FCM) with Supabase Database Webhooks and Edge Functions. Supabase persists notification events; FCM delivers the OS notification while the app process is closed. Realtime is not used as a substitute for OS push. Guests remain local-only. Android 13+ notification permission is requested at runtime. See [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md).
+
