@@ -143,22 +143,31 @@ create policy "videos_read_public_catalog" on public.videos
 -- SECURITY DEFINER helpers avoid recursive RLS when playlist policies inspect memberships.
 create or replace function public.is_playlist_owner(p_playlist_id uuid, p_user_id uuid)
 returns boolean language sql stable security definer set search_path = public
-as $ select exists (select 1 from public.playlists p where p.id = p_playlist_id and p.owner_id = p_user_id); $;
+as $function$ select exists (select 1 from public.playlists p where p.id = p_playlist_id and p.owner_id = p_user_id); $function$;
 
 create or replace function public.is_playlist_member(p_playlist_id uuid, p_user_id uuid)
 returns boolean language sql stable security definer set search_path = public
-as $ select exists (select 1 from public.playlist_members pm where pm.playlist_id = p_playlist_id and pm.user_id = p_user_id); $;
+as $function$ select exists (select 1 from public.playlist_members pm where pm.playlist_id = p_playlist_id and pm.user_id = p_user_id); $function$;
 
 create or replace function public.can_manage_playlist(p_playlist_id uuid, p_user_id uuid)
 returns boolean language sql stable security definer set search_path = public
-as $
+as $function$
   select public.is_playlist_owner(p_playlist_id, p_user_id)
     or exists (select 1 from public.playlist_members pm where pm.playlist_id = p_playlist_id and pm.user_id = p_user_id and pm.role = 'editor');
-$
+$function$;
 
 create or replace function public.can_view_playlist(p_playlist_id uuid, p_user_id uuid)
 returns boolean language sql stable security definer set search_path = public
-as $ select public.is_playlist_owner(p_playlist_id, p_user_id) or public.is_playlist_member(p_playlist_id, p_user_id); $
+as $function$ select public.is_playlist_owner(p_playlist_id, p_user_id) or public.is_playlist_member(p_playlist_id, p_user_id); $function$;
+
+revoke all on function public.is_playlist_owner(uuid, uuid) from public;
+revoke all on function public.is_playlist_member(uuid, uuid) from public;
+revoke all on function public.can_manage_playlist(uuid, uuid) from public;
+revoke all on function public.can_view_playlist(uuid, uuid) from public;
+grant execute on function public.is_playlist_owner(uuid, uuid) to authenticated;
+grant execute on function public.is_playlist_member(uuid, uuid) to authenticated;
+grant execute on function public.can_manage_playlist(uuid, uuid) to authenticated;
+grant execute on function public.can_view_playlist(uuid, uuid) to authenticated;
 
 create policy "playlists_read_owner_or_member" on public.playlists
   for select to authenticated using (
@@ -179,7 +188,7 @@ create policy "playlist_members_owner_manage" on public.playlist_members
   for all to authenticated using (
     public.is_playlist_owner(playlist_id, auth.uid())
   ) with check (
-    exists (select 1 from public.playlists p where p.id = playlist_id and p.owner_id = auth.uid())
+    public.is_playlist_owner(playlist_id, auth.uid())
   );
 
 create policy "playlist_items_read_related" on public.playlist_items
@@ -192,6 +201,12 @@ create policy "playlist_items_add_owner_or_editor" on public.playlist_items
   );
 create policy "playlist_items_remove_owner_or_editor" on public.playlist_items
   for delete to authenticated using (
+    public.can_manage_playlist(playlist_id, auth.uid())
+  );
+create policy "playlist_items_update_owner_or_editor" on public.playlist_items
+  for update to authenticated using (
+    public.can_manage_playlist(playlist_id, auth.uid())
+  ) with check (
     public.can_manage_playlist(playlist_id, auth.uid())
   );
 
