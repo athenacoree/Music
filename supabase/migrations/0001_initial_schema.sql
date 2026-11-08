@@ -1,7 +1,7 @@
--- Music initial schema. Apply only to the dedicated Music Supabase project.
+-- Music initial schema. Apply to the shared Interaccion Supabase project; Music tables are isolated by name.
 create extension if not exists pgcrypto;
 
-create table if not exists public.profiles (
+create table if not exists public.music_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default 'Music user',
   avatar_path text,
@@ -112,7 +112,7 @@ create table if not exists public.notifications (
 create index if not exists notifications_user_created_idx
   on public.notifications(user_id, created_at desc);
 
-alter table public.profiles enable row level security;
+alter table public.music_profiles enable row level security;
 alter table public.artists enable row level security;
 alter table public.albums enable row level security;
 alter table public.tracks enable row level security;
@@ -123,11 +123,11 @@ alter table public.playlist_items enable row level security;
 alter table public.push_devices enable row level security;
 alter table public.notifications enable row level security;
 
-create policy "profiles_select_authenticated" on public.profiles
+create policy "music_profiles_select_authenticated" on public.music_profiles
   for select to authenticated using (true);
-create policy "profiles_insert_own" on public.profiles
+create policy "music_profiles_insert_own" on public.music_profiles
   for insert to authenticated with check (auth.uid() = id);
-create policy "profiles_update_own" on public.profiles
+create policy "music_profiles_update_own" on public.music_profiles
   for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
 
 -- Catalog is readable by app users. Only trusted project administrators should write catalog rows.
