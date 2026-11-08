@@ -131,21 +131,38 @@ create policy "profiles_update_own" on public.profiles
   for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
 
 -- Catalog is readable by app users. Only trusted project administrators should write catalog rows.
-create policy "artists_read_authenticated" on public.artists
-  for select to authenticated using (true);
-create policy "albums_read_authenticated" on public.albums
-  for select to authenticated using (true);
-create policy "tracks_read_authenticated" on public.tracks
-  for select to authenticated using (true);
-create policy "videos_read_authenticated" on public.videos
-  for select to authenticated using (true);
+create policy "artists_read_public_catalog" on public.artists
+  for select to anon, authenticated using (true);
+create policy "albums_read_public_catalog" on public.albums
+  for select to anon, authenticated using (true);
+create policy "tracks_read_public_catalog" on public.tracks
+  for select to anon, authenticated using (true);
+create policy "videos_read_public_catalog" on public.videos
+  for select to anon, authenticated using (true);
+
+-- SECURITY DEFINER helpers avoid recursive RLS when playlist policies inspect memberships.
+create or replace function public.is_playlist_owner(p_playlist_id uuid, p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $ select exists (select 1 from public.playlists p where p.id = p_playlist_id and p.owner_id = p_user_id); $;
+
+create or replace function public.is_playlist_member(p_playlist_id uuid, p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $ select exists (select 1 from public.playlist_members pm where pm.playlist_id = p_playlist_id and pm.user_id = p_user_id); $;
+
+create or replace function public.can_manage_playlist(p_playlist_id uuid, p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $
+  select public.is_playlist_owner(p_playlist_id, p_user_id)
+    or exists (select 1 from public.playlist_members pm where pm.playlist_id = p_playlist_id and pm.user_id = p_user_id and pm.role = 'editor');
+$
+
+create or replace function public.can_view_playlist(p_playlist_id uuid, p_user_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $ select public.is_playlist_owner(p_playlist_id, p_user_id) or public.is_playlist_member(p_playlist_id, p_user_id); $
 
 create policy "playlists_read_owner_or_member" on public.playlists
   for select to authenticated using (
-    owner_id = auth.uid() or exists (
-      select 1 from public.playlist_members pm
-      where pm.playlist_id = id and pm.user_id = auth.uid()
-    )
+    public.can_view_playlist(id, auth.uid())
   );
 create policy "playlists_insert_owner" on public.playlists
   for insert to authenticated with check (owner_id = auth.uid());
@@ -156,40 +173,26 @@ create policy "playlists_delete_owner" on public.playlists
 
 create policy "playlist_members_read_related" on public.playlist_members
   for select to authenticated using (
-    user_id = auth.uid() or exists (
-      select 1 from public.playlists p
-      where p.id = playlist_id and p.owner_id = auth.uid()
-    )
+    user_id = auth.uid() or public.is_playlist_owner(playlist_id, auth.uid())
   );
 create policy "playlist_members_owner_manage" on public.playlist_members
   for all to authenticated using (
-    exists (select 1 from public.playlists p where p.id = playlist_id and p.owner_id = auth.uid())
+    public.is_playlist_owner(playlist_id, auth.uid())
   ) with check (
     exists (select 1 from public.playlists p where p.id = playlist_id and p.owner_id = auth.uid())
   );
 
 create policy "playlist_items_read_related" on public.playlist_items
   for select to authenticated using (
-    exists (select 1 from public.playlists p where p.id = playlist_id and
-      (p.owner_id = auth.uid() or exists (
-        select 1 from public.playlist_members pm where pm.playlist_id = p.id and pm.user_id = auth.uid()
-      )))
+    public.can_view_playlist(playlist_id, auth.uid())
   );
 create policy "playlist_items_add_owner_or_editor" on public.playlist_items
   for insert to authenticated with check (
-    added_by = auth.uid() and exists (
-      select 1 from public.playlists p where p.id = playlist_id and
-      (p.owner_id = auth.uid() or exists (
-        select 1 from public.playlist_members pm where pm.playlist_id = p.id and pm.user_id = auth.uid() and pm.role = 'editor'
-      ))
-    )
+    added_by = auth.uid() and public.can_manage_playlist(playlist_id, auth.uid())
   );
 create policy "playlist_items_remove_owner_or_editor" on public.playlist_items
   for delete to authenticated using (
-    exists (select 1 from public.playlists p where p.id = playlist_id and
-      (p.owner_id = auth.uid() or exists (
-        select 1 from public.playlist_members pm where pm.playlist_id = p.id and pm.user_id = auth.uid() and pm.role = 'editor'
-      )))
+    public.can_manage_playlist(playlist_id, auth.uid())
   );
 
 create policy "push_devices_select_own" on public.push_devices
