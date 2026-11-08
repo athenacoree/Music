@@ -22,3 +22,6 @@ Abre el proyecto en Android Studio y sincroniza Gradle. No se incluyen claves ni
 
 ## Restricciones de contenido
 La reproducción en segundo plano y las descargas se implementarán para archivos que el usuario posea o tenga permiso de utilizar. Los vídeos de YouTube se reproducirán mediante el reproductor oficial, sin extracción ni descarga.
+
+## Push notifications
+Signed-in users will be able to opt into Android push notifications. Supabase stores notification events and triggers an Edge Function; Firebase Cloud Messaging (FCM) delivers them even when Music is closed. Guest mode stays local-only. Setup and security details: [docs/PUSH_NOTIFICATIONS.md](docs/PUSH_NOTIFICATIONS.md).
