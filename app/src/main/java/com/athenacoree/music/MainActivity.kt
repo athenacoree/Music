@@ -513,7 +513,21 @@ private fun LibraryScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                         .background(colors.surface).clickable {
-                            track.mediaUri?.let { MusicPlaybackController.play(context, Uri.parse(it), track.title) }
+                            track.mediaUri?.let { media ->
+                                if (track.source == "device-video") {
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(Uri.parse(media), "video/*")
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        })
+                                    }
+                                } else {
+                                    val audioQueue = visibleTracks.filter { it.mediaUri != null && it.source != "device-video" }
+                                        .map { Uri.parse(it.mediaUri) to it.title }
+                                    val selectedIndex = audioQueue.indexOfFirst { it.first == Uri.parse(media) }.coerceAtLeast(0)
+                                    MusicPlaybackController.playQueue(context, audioQueue, selectedIndex)
+                                }
+                            }
                         }.padding(13.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
