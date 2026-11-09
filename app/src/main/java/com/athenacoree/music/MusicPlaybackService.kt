@@ -17,7 +17,7 @@ class MusicPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val player = ExoPlayer.Builder(this).build()
+        val player = ExoPlayer.Builder(this).build().apply { setHandleAudioBecomingNoisy(true) }
         mediaSession = MediaSession.Builder(this, player).build()
     }
 
