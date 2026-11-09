@@ -374,7 +374,7 @@ private fun LibraryScreen(
     var scanStatus by rememberSaveable { mutableStateOf("Primero se importan 5 archivos; luego puedes continuar por tandas.") }
     val scanPermissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO) else arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     val scanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        if (grants.values.any { it }) scope.launch {
+        if (grants.values.all { it }) scope.launch {
             runCatching { MusicDeviceScanner.scanNextMediaBatch(context, repository) }
                 .onSuccess { result ->
                     scanStatus = if (result.imported == 0) "No quedan más archivos multimedia." else
@@ -686,7 +686,7 @@ private fun CatalogBrowserScreen(
                                     val normalized = normalizeMusicTitle(entry.title)
                                     val match = localMedia.firstOrNull { local ->
                                         val localTitle = normalizeMusicTitle(local.title)
-                                        local.source == expectedSource && localTitle.isNotBlank() &&
+                                        (local.source == expectedSource || (kind == "track" && local.source == "device")) && localTitle.isNotBlank() &&
                                             (localTitle == normalized || localTitle.contains(normalized) || normalized.contains(localTitle)) &&
                                             (entry.subtitle.isBlank() || local.artistName.isBlank() ||
                                                 normalizeMusicTitle(local.artistName).contains(normalizeMusicTitle(entry.subtitle)) ||
