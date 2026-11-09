@@ -64,30 +64,30 @@ internal class MusicCatalogSyncRepository(private val dao: MusicLibraryDao) {
         val artists = client.from("artists").select().decodeList<ArtistDto>()
         val artistNames = artists.associate { it.id to it.name }
         artists.forEach { item ->
-            dao.upsertCatalogEntry(item.id, "artist", item.name, item.biography.orEmpty(),
-                item.imagePath, null, null, null, item.version, item.updatedAt)
+            dao.upsertCatalogEntryIfNewer(CatalogEntryEntity(item.id, "artist", item.name, item.biography.orEmpty(),
+                item.imagePath, version = item.version, updatedAt = item.updatedAt))
         }
 
         val albums = client.from("albums").select().decodeList<AlbumDto>()
         albums.forEach { item ->
-            dao.upsertCatalogEntry(item.id, "album", item.title,
+            dao.upsertCatalogEntryIfNewer(CatalogEntryEntity(item.id, "album", item.title,
                 item.artistId?.let { artistNames[it] }.orEmpty(), item.artworkPath,
-                null, null, null, item.version, item.updatedAt)
+                version = item.version, updatedAt = item.updatedAt))
         }
 
         val tracks = client.from("tracks").select().decodeList<TrackDto>()
         tracks.forEach { item ->
-            dao.upsertCatalogEntry(item.id, "track", item.title,
+            dao.upsertCatalogEntryIfNewer(CatalogEntryEntity(item.id, "track", item.title,
                 item.artistId?.let { artistNames[it] }.orEmpty(), item.artworkPath,
-                item.contentType, item.albumId, item.mediaSource, item.version, item.updatedAt)
+                item.contentType, item.albumId, item.mediaSource, item.version, item.updatedAt))
         }
 
         val videos = client.from("videos").select().decodeList<VideoDto>()
         videos.forEach { item ->
-            dao.upsertCatalogEntry(item.id, "video", item.title,
+            dao.upsertCatalogEntryIfNewer(CatalogEntryEntity(item.id, "video", item.title,
                 item.artistId?.let { artistNames[it] }.orEmpty(), item.thumbnailPath,
                 item.provider, item.providerVideoId, item.authorizedMediaPath,
-                item.version, item.updatedAt)
+                item.version, item.updatedAt))
         }
 
         return CatalogSyncResult(artists.size, albums.size, tracks.size, videos.size)
