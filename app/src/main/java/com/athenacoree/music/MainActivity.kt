@@ -623,6 +623,8 @@ private fun CatalogBrowserScreen(
     var syncStatus by rememberSaveable { mutableStateOf("Catálogo guardado en este dispositivo") }
     var syncing by rememberSaveable { mutableStateOf(false) }
     val entries by repository.catalog(kind).collectAsState(initial = emptyList())
+    val localMedia by repository.tracks.collectAsState(initial = emptyList())
+    var sourceChoice by remember { mutableStateOf<Pair<CatalogEntryEntity, LocalTrackEntity>?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val dataSaver by MusicPreferences.dataSaver(context).collectAsState(initial = false)
@@ -678,12 +680,22 @@ private fun CatalogBrowserScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
                             .background(colors.surface).clickable {
-                                if (kind == "video") {
-                                    val url = if (entry.provider.equals("youtube", true) && !entry.providerId.isNullOrBlank())
-                                        "https://www.youtube.com/watch?v=${entry.providerId}"
-                                    else entry.mediaPath
-                                    if (!url.isNullOrBlank()) runCatching {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                if (kind == "video" || kind == "track") {
+                                    val expectedSource = if (kind == "video") "device-video" else "device-audio"
+                                    val normalized = normalizeMusicTitle(entry.title)
+                                    val match = localMedia.firstOrNull { local ->
+                                        val localTitle = normalizeMusicTitle(local.title)
+                                        local.source == expectedSource && localTitle.isNotBlank() &&
+                                            (localTitle == normalized || localTitle.contains(normalized) || normalized.contains(localTitle)) &&
+                                            (entry.subtitle.isBlank() || local.artistName.isBlank() ||
+                                                normalizeMusicTitle(local.artistName).contains(normalizeMusicTitle(entry.subtitle)) ||
+                                                normalizeMusicTitle(entry.subtitle).contains(normalizeMusicTitle(local.artistName)))
+                                    }
+                                    if (match != null) sourceChoice = entry to match
+                                    else {
+                                        val url = if (entry.provider.equals("youtube", true) && !entry.providerId.isNullOrBlank())
+                                            "https://www.youtube.com/watch?v=${entry.providerId}" else entry.mediaPath
+                                        if (!url.isNullOrBlank()) runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
                                     }
                                 }
                             }.padding(12.dp),
@@ -733,7 +745,36 @@ private fun CatalogBrowserScreen(
             }
         }
     }
+    sourceChoice?.let { (online, offline) ->
+        AlertDialog(
+            onDismissRequest = { sourceChoice = null },
+            title = { Text("Encontré una versión en tu dispositivo") },
+            text = { Text("${online.title} · ${online.subtitle.ifBlank { "Artista no indicado" }}. Elige la fuente.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (offline.source == "device-video") {
+                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(Uri.parse(offline.mediaUri), "video/*")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }) }
+                    } else offline.mediaUri?.let { MusicPlaybackController.play(context, Uri.parse(it), offline.title) }
+                    sourceChoice = null
+                }) { Text("Offline · dispositivo") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    val url = if (online.provider.equals("youtube", true) && !online.providerId.isNullOrBlank())
+                        "https://www.youtube.com/watch?v=${online.providerId}" else online.mediaPath
+                    if (!url.isNullOrBlank()) runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                    sourceChoice = null
+                }) { Text("Online") }
+            }
+        )
+    }
 }
+
+private fun normalizeMusicTitle(value: String): String =
+    value.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "").trim()
 
 @Composable
 private fun PlaylistManagerScreen(
