@@ -7,7 +7,7 @@
 - Supabase Auth handles password hashing, verification settings, access tokens, and refresh tokens.
 - The Android SDK loads a stored session and refreshes it automatically.
 - Signing out clears the Supabase Auth session on this device.
-- A Music-only profile row is created by a database trigger when a new Auth user is created.
+- A Music-only profile row is created only when the account is registered by Music (the signup includes an app marker). The shared Interaccion project users are not automatically copied into Music.
 
 ## Email confirmation
 
