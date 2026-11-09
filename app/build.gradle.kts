@@ -32,8 +32,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -68,6 +71,10 @@ dependencies {
     implementation(platform("io.github.jan-tennert.supabase:bom:3.9.0"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+
+    // Image loading for catalog artwork and thumbnails.
+    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.ktor:ktor-client-android:3.4.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
