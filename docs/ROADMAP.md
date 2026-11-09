@@ -4,9 +4,9 @@
 - [x] Add initial navigation shell: Home, Library, Videos, Playlists, Profile.
 - [x] Add selectable light/dark visual modes.
 - [x] Present guest mode as the initial account experience.
-- [ ] Persist preferences with DataStore.
-- [ ] Add local catalog database with Room.
-- [ ] Add artist, album, track and video domain models.
+- [x] Persist appearance and data-saver preferences with DataStore.
+- [x] Add local Room database for tracks, favorites and playlists.
+- [ ] Add remote catalog domain models and version-aware local catalog mapping.
 - [ ] Implement version-aware catalog synchronization.
 - [ ] Integrate Media3 for authorized local/remote media.
 - [ ] Add image loading and bounded cache.
@@ -16,7 +16,7 @@
 - [x] Add a read-only Supabase catalog connection check.
 - [ ] Add collaborative playlists with RLS.
 - [ ] Add Android share intents and official YouTube player handoff.
-- [ ] Add data-saver and storage controls.
+- [x] Persist data-saver preference (UI controls and cache limits remain pending).
 - [ ] Test offline behavior and remote-service failure behavior.
 - [ ] Confirm the new GitHub Actions Android compile workflow passes.
 - [ ] Test registration, email confirmation, sign-in, session restoration and sign-out on a real Android device.
