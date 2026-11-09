@@ -40,7 +40,7 @@ Supabase's official guide documents this pattern using Database Webhooks, Edge F
 - Keep payloads small and avoid sensitive content on lock-screen notifications; send an event ID/deep link and fetch details after app opens.
 
 ## Setup still required
-- Create a dedicated Supabase project for Music.
+- Music currently reuses the existing `interaccion` Supabase project to stay within the free-project limit; Music data remains in separate `music_*` tables and its own policies.
 - Create a Firebase project and register `com.athenacoree.music` for FCM.
 - Add the FCM Android SDK and notification service to the app.
 - Store the FCM service-account credential as a Supabase secret.
