@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,12 +47,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,12 +68,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.jan.supabase.gotrue.SessionStatus
 
 private enum class MusicTab(val label: String, val icon: ImageVector) {
     Home("Inicio", Icons.Default.Home),
@@ -439,33 +445,157 @@ private fun ProfileScreen(
 ) {
     var cloudStatus by rememberSaveable { mutableStateOf("Aún no comprobada") }
     var checkingCloud by rememberSaveable { mutableStateOf(false) }
+    var signedIn by rememberSaveable { mutableStateOf(false) }
+    var authMode by rememberSaveable { mutableStateOf("login") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var authMessage by rememberSaveable { mutableStateOf("") }
+    var authLoading by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(Unit) {
+        MusicSupabase.client.gotrue.sessionStatus.collect { status ->
+            signedIn = status is SessionStatus.Authenticated
+        }
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(padding).padding(22.dp),
+        modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Perfil y ajustes", color = colors.text, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-        Row(
+
+        Column(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surface).padding(17.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Box(
-                modifier = Modifier.size(52.dp).clip(CircleShape).background(colors.surfaceAlt),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.Person, contentDescription = null, tint = colors.accent, modifier = Modifier.size(28.dp)) }
-            Spacer(Modifier.width(13.dp))
-            Column {
-                Text("Estás usando Music como invitado", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("No necesitas una cuenta para empezar", color = colors.muted, fontSize = 11.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceAlt),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = colors.accent, modifier = Modifier.size(26.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        if (signedIn) "Cuenta conectada" else "Estás usando Music como invitado",
+                        color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp
+                    )
+                    Text(
+                        if (signedIn) "Tu sesión está vinculada a la nube" else "Puedes seguir sin registrarte",
+                        color = colors.muted, fontSize = 11.sp
+                    )
+                }
             }
+
+            if (signedIn) {
+                Text("La cuenta está activa en este dispositivo.", color = colors.muted, fontSize = 12.sp)
+                Button(
+                    onClick = {
+                        if (!authLoading) {
+                            authLoading = true
+                            scope.launch {
+                                val result = runCatching {
+                                    withContext(Dispatchers.IO) { MusicAuthRepository.signOut() }
+                                }
+                                authMessage = if (result.isSuccess) "Sesión cerrada." else "No se pudo cerrar la sesión. Inténtalo de nuevo."
+                                authLoading = false
+                            }
+                        }
+                    },
+                    enabled = !authLoading
+                ) { Text(if (authLoading) "Un momento…" else "Cerrar sesión") }
+            } else {
+                Text(
+                    if (authMode == "login") "Inicia sesión para sincronizar tu cuenta." else "Crea una cuenta para acceder desde otros dispositivos.",
+                    color = colors.muted, fontSize = 12.sp, lineHeight = 17.sp
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it; authMessage = "" },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Correo electrónico") }
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; authMessage = "" },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Contraseña") },
+                    visualTransformation = PasswordVisualTransformation()
+                )
+                Button(
+                    onClick = {
+                        val cleanEmail = email.trim()
+                        if (cleanEmail.isBlank() || !cleanEmail.contains("@") || password.length < 8) {
+                            authMessage = "Escribe un correo válido y una contraseña de al menos 8 caracteres."
+                        } else if (!authLoading) {
+                            authLoading = true
+                            authMessage = ""
+                            scope.launch {
+                                val result = runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        if (authMode == "login") {
+                                            MusicAuthRepository.signIn(cleanEmail, password)
+                                        } else {
+                                            MusicAuthRepository.signUp(cleanEmail, password)
+                                        }
+                                    }
+                                }
+                                authMessage = result.fold(
+                                    onSuccess = {
+                                        if (authMode == "login") "Sesión iniciada correctamente."
+                                        else "Registro enviado. Si se solicita, confirma tu correo antes de iniciar sesión."
+                                    },
+                                    onFailure = {
+                                        if (authMode == "login") "No se pudo iniciar sesión. Revisa tus datos e inténtalo de nuevo."
+                                        else "No se pudo crear la cuenta. Comprueba el correo e inténtalo de nuevo."
+                                    }
+                                )
+                                authLoading = false
+                            }
+                        }
+                    },
+                    enabled = !authLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        when {
+                            authLoading -> "Conectando…"
+                            authMode == "login" -> "Iniciar sesión"
+                            else -> "Crear cuenta"
+                        }
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        authMode = if (authMode == "login") "signup" else "login"
+                        authMessage = ""
+                    }
+                ) {
+                    Text(
+                        if (authMode == "login") "¿No tienes cuenta? Regístrate" else "Ya tengo cuenta · Iniciar sesión",
+                        color = colors.accent
+                    )
+                }
+            }
+            if (authMessage.isNotBlank()) {
+                Text(authMessage, color = colors.muted, fontSize = 11.sp, lineHeight = 16.sp)
+            }
+            Text(
+                "El modo invitado sigue disponible y no sube tu biblioteca personal.",
+                color = colors.muted, fontSize = 10.sp, lineHeight = 15.sp
+            )
         }
+
         Column(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text("Conexión con la nube", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-            Text("Music consulta el catálogo público de Supabase. Tu biblioteca de invitado sigue siendo local.", color = colors.muted, fontSize = 11.sp, lineHeight = 16.sp)
+            Text("Consulta el catálogo público de Music en Supabase.", color = colors.muted, fontSize = 11.sp, lineHeight = 16.sp)
             Button(
                 onClick = {
                     if (!checkingCloud) {
@@ -488,6 +618,7 @@ private fun ProfileScreen(
             }
             Text(cloudStatus, color = colors.muted, fontSize = 11.sp)
         }
+
         Text("Preferencias", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).clickable { onThemeChange() }.padding(16.dp),
