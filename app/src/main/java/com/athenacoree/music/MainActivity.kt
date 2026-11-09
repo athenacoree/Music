@@ -107,7 +107,7 @@ private fun MusicApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val darkMode by MusicPreferences.darkMode(context).collectAsState(initial = false)
-    val changeTheme = { scope.launch { MusicPreferences.setDarkMode(context, !darkMode) } }
+    val changeTheme: () -> Unit = { scope.launch { MusicPreferences.setDarkMode(context, !darkMode) }; Unit }
     val libraryRepository = remember { MusicLibraryRepository(MusicDatabase.getInstance(context).libraryDao()) }
     var selectedTab by rememberSaveable { mutableStateOf(MusicTab.Home.name) }
     val tab = MusicTab.valueOf(selectedTab)
