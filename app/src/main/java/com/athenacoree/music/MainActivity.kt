@@ -768,6 +768,9 @@ private fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val dataSaver by MusicPreferences.dataSaver(context).collectAsState(initial = false)
+    var inbox by remember { mutableStateOf<List<MusicNotificationDto>>(emptyList()) }
+    var inboxStatus by rememberSaveable { mutableStateOf("Pulsa para consultar tus notificaciones.") }
+    var inboxLoading by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         MusicSupabase.client.gotrue.sessionStatus.collect { status ->
@@ -933,6 +936,36 @@ private fun ProfileScreen(
                 Text(if (checkingCloud) "Comprobando…" else "Comprobar conexión")
             }
             Text(cloudStatus, color = colors.muted, fontSize = 11.sp)
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Bandeja de notificaciones", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                    modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    if (!inboxLoading) {
+                        inboxLoading = true
+                        scope.launch {
+                            runCatching { withContext(Dispatchers.IO) { MusicNotificationRepository.loadInbox() } }
+                                .onSuccess { inbox = it; inboxStatus = if (it.isEmpty()) "No hay notificaciones o debes iniciar sesión." else "${it.size} notificación(es)" }
+                                .onFailure { inboxStatus = "No se pudo cargar la bandeja." }
+                            inboxLoading = false
+                        }
+                    }
+                }, enabled = !inboxLoading) { Text(if (inboxLoading) "Cargando…" else "Actualizar", color = colors.accent) }
+            }
+            Text(inboxStatus, color = colors.muted, fontSize = 11.sp)
+            inbox.take(5).forEach { notification ->
+                Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .background(colors.surfaceAlt).padding(11.dp)) {
+                    Text(notification.title, color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    Text(notification.body, color = colors.muted, fontSize = 11.sp)
+                    Text(notification.createdAt, color = colors.muted, fontSize = 9.sp)
+                }
+            }
         }
 
         Text("Preferencias", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp)
