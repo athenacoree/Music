@@ -91,19 +91,19 @@ interface MusicLibraryDao {
     @Query("SELECT * FROM catalog_entries WHERE kind = :kind ORDER BY title COLLATE NOCASE")
     suspend fun getCatalog(kind: String): List<CatalogEntryEntity>
 
-    @Query("""
-        INSERT INTO catalog_entries(id, kind, title, subtitle, imagePath, provider, providerId, mediaPath, version, updatedAt)
-        VALUES(:id, :kind, :title, :subtitle, :imagePath, :provider, :providerId, :mediaPath, :version, :updatedAt)
-        ON CONFLICT(id) DO UPDATE SET
-            kind = excluded.kind, title = excluded.title, subtitle = excluded.subtitle,
-            imagePath = excluded.imagePath, provider = excluded.provider,
-            providerId = excluded.providerId, mediaPath = excluded.mediaPath,
-            version = excluded.version, updatedAt = excluded.updatedAt
-        WHERE excluded.version >= catalog_entries.version
-    """)
-    suspend fun upsertCatalogEntry(id: String, kind: String, title: String, subtitle: String,
-        imagePath: String?, provider: String?, providerId: String?, mediaPath: String?,
-        version: Long, updatedAt: String)
+    @Query("SELECT * FROM catalog_entries WHERE id = :id LIMIT 1")
+    suspend fun getCatalogEntry(id: String): CatalogEntryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveCatalogEntry(entry: CatalogEntryEntity)
+
+    @Transaction
+    suspend fun upsertCatalogEntryIfNewer(entry: CatalogEntryEntity) {
+        val current = getCatalogEntry(entry.id)
+        if (current == null || entry.version >= current.version) {
+            saveCatalogEntry(entry)
+        }
+    }
 
     @Query("SELECT * FROM local_playlists ORDER BY updatedAt DESC")
     fun observePlaylists(): Flow<List<LocalPlaylistEntity>>
