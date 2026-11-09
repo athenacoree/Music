@@ -8,7 +8,7 @@
 - [x] Add local Room database for tracks, favorites and playlists.
 - [ ] Add remote catalog domain models and version-aware local catalog mapping.
 - [ ] Implement version-aware catalog synchronization.
-- [ ] Integrate Media3 for authorized local/remote media.
+- [x] Integrate Media3 native playback for user-selected local audio files.
 - [ ] Add image loading and bounded cache.
 - [x] Add optional Supabase email/password authentication with guest mode preserved.
 - [x] Load and refresh Supabase Auth sessions on Android.
@@ -17,7 +17,7 @@
 - [ ] Add collaborative playlists with RLS.
 - [ ] Add Android share intents and official YouTube player handoff.
 - [x] Persist data-saver preference (UI controls and cache limits remain pending).
-- [ ] Test offline behavior and remote-service failure behavior.
+- [ ] Test offline behavior, local file playback and remote-service failure behavior.
 - [ ] Confirm the new GitHub Actions Android compile workflow passes.
 - [ ] Test registration, email confirmation, sign-in, session restoration and sign-out on a real Android device.
 
