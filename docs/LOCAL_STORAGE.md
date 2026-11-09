@@ -14,3 +14,14 @@ Preferences are stored with DataStore (light/dark appearance and data-saver pref
 ## Current scope
 
 The Room schema, repository and first library screen are wired together. Users can select audio files through Android’s document picker, keep their URI permission, see them in the library, mark favorites and start native playback through a Media3 session service. DataStore persists the appearance choice. Catalog synchronization still needs a version-aware merge strategy before it is enabled. Never replace a local file URI with a remote catalog URL during sync.
+
+
+## Remote catalog and artwork
+
+The catalog sync repository downloads artist, album, track and video metadata into the Room catalog cache. Each entry carries the server version; a cached entry is replaced only when the incoming version is equal or newer. The sync is user-triggered from the catalog screen and leaves previously cached content available when offline.
+
+Artwork is loaded from the public `music-artwork` Storage bucket. Coil is configured with a 48 MB disk cache and a bounded memory cache. Data Saver suppresses catalog artwork requests to reduce network use.
+
+## Playlists and sharing
+
+Local playlists and their track membership stay in Room. Signed-in users can create collaborative cloud playlists, invite another account by Supabase user UUID as an editor, and add catalog tracks. RLS remains the authorization boundary. Local media files are never uploaded by playlist sync.
