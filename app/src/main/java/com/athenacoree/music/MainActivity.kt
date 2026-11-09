@@ -56,6 +56,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -448,7 +449,7 @@ private fun ProfileScreen(
     var signedIn by rememberSaveable { mutableStateOf(false) }
     var authMode by rememberSaveable { mutableStateOf("login") }
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var authMessage by rememberSaveable { mutableStateOf("") }
     var authLoading by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
