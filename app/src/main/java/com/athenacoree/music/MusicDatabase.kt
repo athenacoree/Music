@@ -15,7 +15,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "local_tracks", indices = [Index("title"), Index("artistName")])
+@Entity(tableName = "local_tracks", indices = [Index(value = ["title"]), Index(value = ["artistName"])])
 data class LocalTrackEntity(
     @PrimaryKey val id: String,
     val title: String,
