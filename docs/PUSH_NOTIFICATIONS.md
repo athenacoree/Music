@@ -51,3 +51,18 @@ Supabase's official guide documents this pattern using Database Webhooks, Edge F
 ## Current integration boundary
 
 The signed-in in-app inbox is implemented against the recipient-only `notifications` RLS policy. FCM delivery is not activated yet: the project still needs a Firebase Android app registration and service-account credentials stored as Supabase Edge Function secrets. Do not place Firebase service-account material in the Android app or GitHub repository. Until those credentials and the webhook are configured, push delivery cannot be claimed as working.
+
+
+## Deployed Edge Function
+
+The function is deployed at:
+
+`https://wlbnulfixkfmvcifvpum.supabase.co/functions/v1/music-push-dispatch`
+
+It has JWT verification disabled only because it is designed for a server-to-server database webhook. It rejects requests unless the `x-push-webhook-secret` header matches the server-side `PUSH_WEBHOOK_SECRET`. It reads device tokens using the service-role key available only in the Edge Function runtime and uses a Firebase service-account JSON secret to call FCM HTTP v1.
+
+Before it can send anything, configure these Edge Function secrets in Supabase:
+- `PUSH_WEBHOOK_SECRET`: a long random secret shared only with the database webhook.
+- `FIREBASE_SERVICE_ACCOUNT_JSON`: the Firebase service-account JSON for the registered Firebase project.
+
+Then create a Database Webhook on inserts into `public.notifications`, targeting this function and sending the webhook secret header. Do not put either secret in the Android app, GitHub, or client-side configuration. Firebase Android app registration and the `google-services.json` file are still required for Android devices to obtain FCM tokens.
