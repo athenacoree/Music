@@ -679,6 +679,9 @@ private fun PlaylistManagerScreen(
     repository: MusicLibraryRepository
 ) {
     val localLists by repository.playlists.collectAsState(initial = emptyList())
+    val localTracks by repository.tracks.collectAsState(initial = emptyList())
+    var cloudTrackId by rememberSaveable { mutableStateOf("") }
+    var targetPlaylistId by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var invitePlaylistId by rememberSaveable { mutableStateOf("") }
@@ -724,6 +727,24 @@ private fun PlaylistManagerScreen(
         }
         item { Text(message, color = colors.muted, fontSize = 11.sp) }
         item { Text("En este dispositivo", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp) }
+        if (localLists.isNotEmpty() && localTracks.isNotEmpty()) {
+            item { Text("Añadir canciones a «${localLists.first().name}»", color = colors.muted, fontSize = 12.sp) }
+            items(localTracks, key = { "local-track-${it.id}" }) { track ->
+                Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(colors.surface).padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(track.title, color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        Text(track.artistName.ifBlank { "Audio local" }, color = colors.muted, fontSize = 10.sp)
+                    }
+                    TextButton(onClick = {
+                        scope.launch {
+                            repository.addToPlaylist(localLists.first().id, track.id)
+                            message = "Canción añadida a tu lista local."
+                        }
+                    }) { Text("Añadir", color = colors.accent) }
+                }
+            }
+        }
         if (localLists.isEmpty()) item { Text("Aún no tienes listas locales.", color = colors.muted, fontSize = 12.sp) }
         items(localLists, key = { it.id }) { list ->
             Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surface).padding(14.dp),
@@ -754,6 +775,26 @@ private fun PlaylistManagerScreen(
                 Text(list.name, color = colors.text, fontWeight = FontWeight.SemiBold)
                 Text(if (list.isCollaborative) "Colaborativa · ID: ${list.id}" else "Privada · ID: ${list.id}",
                     color = colors.muted, fontSize = 10.sp)
+                TextButton(onClick = { targetPlaylistId = list.id; invitePlaylistId = list.id }) {
+                    Text("Usar esta lista", color = colors.accent, fontSize = 10.sp)
+                }
+            }
+        }
+        item {
+            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(15.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Añadir canción a lista compartida", color = colors.text, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = targetPlaylistId, onValueChange = { targetPlaylistId = it }, label = { Text("ID de la lista") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = cloudTrackId, onValueChange = { cloudTrackId = it }, label = { Text("ID de canción del catálogo") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Button(onClick = {
+                    scope.launch {
+                        runCatching { MusicCloudPlaylistRepository.addTrack(targetPlaylistId.trim(), cloudTrackId.trim()) }
+                            .onSuccess { message = "Canción añadida a la lista compartida." }
+                            .onFailure { message = it.message ?: "No se pudo añadir. Debes ser propietario o editor." }
+                    }
+                }, enabled = targetPlaylistId.isNotBlank() && cloudTrackId.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                    Text("Añadir canción")
+                }
             }
         }
         item {
