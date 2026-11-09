@@ -511,16 +511,26 @@ private fun LibraryScreen(
                         Text(if (track.isFavorite) "♥" else "♡", color = colors.accent, fontSize = 19.sp)
                     }
                     TextButton(onClick = {
-                        val shareText = track.mediaUri ?: track.title
-                        runCatching {
-                            context.startActivity(Intent.createChooser(
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, shareText)
-                                }, "Compartir canción"
-                            ))
+                        track.mediaUri?.let { mediaUri ->
+                            runCatching {
+                                val uri = Uri.parse(mediaUri)
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "audio/*"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    clipData = android.content.ClipData.newUri(
+                                        context.contentResolver, track.title, uri
+                                    )
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Compartir archivo de audio"))
+                            }
                         }
-                    }) { Text("↗", color = colors.accent, fontSize = 17.sp) }
+                    }, enabled = !track.mediaUri.isNullOrBlank()) {
+                        Text("↗", color = colors.accent, fontSize = 17.sp)
+                    }
+                    TextButton(onClick = {
+                        scope.launch { repository.removeTrack(track.id) }
+                    }) { Text("Quitar", color = colors.muted, fontSize = 10.sp) }
                 }
             }
         }
