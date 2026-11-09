@@ -13,7 +13,7 @@
 
 Hosted Supabase projects commonly require email confirmation by default. After registration, the app tells the user to check their email if confirmation is required. The user can then return to the app and sign in.
 
-The project owner can review this under Authentication > Providers > Email in the Supabase Dashboard. Do not disable email confirmation merely to make the UI appear to work.
+The project owner can review this under Authentication > Providers > Email in the Supabase Dashboard. Supabase's default email sender has testing limits; wider registration may require configuring a trusted SMTP provider. Do not disable email confirmation merely to make the UI appear to work.
 
 ## Security
 
@@ -28,4 +28,5 @@ The project owner can review this under Authentication > Providers > Email in th
 - Email/password authentication is implemented; social sign-in and password reset UI are not yet implemented.
 - The guest library is still local-only.
 - Signed-in playlist and library synchronization is the next milestone.
-- A successful GitHub commit does not prove that Android builds. A Gradle build and on-device sign-in test are still required.
+- A GitHub Actions workflow now runs `:app:assembleDebug` on pushes to `main` without uploading APK artifacts, so it does not consume artifact storage.
+- The workflow has been added, but its first successful run and a real-device sign-in/session test still need confirmation.
