@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
+import coil.compose.AsyncImage
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -163,14 +164,8 @@ private fun MusicApp() {
                 when (tab) {
                     MusicTab.Home -> HomeScreen(colors, padding)
                     MusicTab.Library -> LibraryScreen(colors, padding, libraryRepository)
-                    MusicTab.Videos -> SimpleSectionScreen(
-                        colors, padding, "Vídeos", "Tus vídeos y colecciones en un solo lugar.",
-                        Icons.Default.VideoLibrary
-                    )
-                    MusicTab.Playlists -> SimpleSectionScreen(
-                        colors, padding, "Mis listas", "Crea listas personales o compártelas cuando quieras.",
-                        Icons.Default.PlaylistPlay
-                    )
+                    MusicTab.Videos -> CatalogBrowserScreen(colors, padding, libraryRepository)
+                    MusicTab.Playlists -> PlaylistManagerScreen(colors, padding, libraryRepository)
                     MusicTab.Profile -> ProfileScreen(colors, padding, darkMode, onThemeChange = changeTheme)
                 }
             }
@@ -525,6 +520,232 @@ private fun SimpleSectionScreen(
             Icon(icon, contentDescription = null, tint = colors.accent, modifier = Modifier.size(36.dp))
             Text("Este espacio es tuyo", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text(description, color = colors.muted, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+    }
+}
+
+@Composable
+private fun CatalogBrowserScreen(
+    colors: MusicColors,
+    padding: PaddingValues,
+    repository: MusicLibraryRepository
+) {
+    var kind by rememberSaveable { mutableStateOf("video") }
+    var syncStatus by rememberSaveable { mutableStateOf("Catálogo guardado en este dispositivo") }
+    var syncing by rememberSaveable { mutableStateOf(false) }
+    val entries by repository.catalog(kind).collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val kinds = listOf("video" to "Vídeos", "artist" to "Artistas", "album" to "Álbumes", "track" to "Canciones")
+
+    Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp)) {
+        Text("Explorar catálogo", color = colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            kinds.forEach { (value, label) ->
+                Surface(
+                    color = if (kind == value) colors.accent else colors.surface,
+                    shape = CircleShape,
+                    modifier = Modifier.clickable { kind = value }
+                ) {
+                    Text(label, color = if (kind == value) colors.accentText else colors.muted,
+                        fontSize = 12.sp, modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp))
+                }
+            }
+        }
+        Button(
+            onClick = {
+                if (!syncing) {
+                    syncing = true
+                    scope.launch {
+                        val result = runCatching {
+                            withContext(Dispatchers.IO) {
+                                MusicCatalogSyncRepository(repository.databaseDao).syncAll()
+                            }
+                        }
+                        syncStatus = result.fold(
+                            { "Actualizado: ${it.artists} artistas · ${it.albums} álbumes · ${it.tracks} canciones · ${it.videos} vídeos" },
+                            { "Sin conexión. Se conserva el catálogo descargado anteriormente." }
+                        )
+                        syncing = false
+                    }
+                }
+            },
+            enabled = !syncing,
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp)
+        ) { Text(if (syncing) "Sincronizando…" else "Actualizar catálogo") }
+        Text(syncStatus, color = colors.muted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 8.dp))
+        if (entries.isEmpty()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(top = 26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = colors.accent, modifier = Modifier.size(42.dp))
+                Text("Todavía no hay contenido", color = colors.text, fontWeight = FontWeight.SemiBold)
+                Text("Actualiza el catálogo cuando tengas conexión. Lo sincronizado quedará disponible sin conexión.", color = colors.muted, fontSize = 12.sp)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+                items(entries, key = { "${kind}-${it.id}" }) { entry ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp))
+                            .background(colors.surface).clickable {
+                                if (kind == "video") {
+                                    val url = if (entry.provider.equals("youtube", true) && !entry.providerId.isNullOrBlank())
+                                        "https://www.youtube.com/watch?v=${entry.providerId}"
+                                    else entry.mediaPath
+                                    if (!url.isNullOrBlank()) runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                    }
+                                }
+                            }.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!entry.imagePath.isNullOrBlank()) {
+                            AsyncImage(
+                                model = if (entry.imagePath.startsWith("http")) entry.imagePath
+                                    else "${BuildConfig.SUPABASE_URL}/storage/v1/object/public/music-artwork/${entry.imagePath.trimStart('/')}",
+                                contentDescription = entry.title,
+                                modifier = Modifier.size(54.dp).clip(RoundedCornerShape(12.dp))
+                            )
+                        } else {
+                            Box(modifier = Modifier.size(54.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceAlt),
+                                contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.MusicNote, contentDescription = null, tint = colors.accent)
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(entry.title, color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(entry.subtitle.ifBlank { entry.provider ?: "Music" }, color = colors.muted, fontSize = 11.sp, maxLines = 1)
+                        }
+                        if (kind == "track") {
+                            TextButton(onClick = {
+                                scope.launch {
+                                    repository.addTrack(LocalTrackEntity(
+                                        id = "catalog:${entry.id}", title = entry.title,
+                                        artistName = entry.subtitle, artworkUri = entry.imagePath,
+                                        source = "catalog"
+                                    ))
+                                }
+                            }) { Text("Guardar", color = colors.accent, fontSize = 11.sp) }
+                        } else if (kind == "video") {
+                            TextButton(onClick = {
+                                val link = if (entry.provider.equals("youtube", true) && !entry.providerId.isNullOrBlank())
+                                    "https://www.youtube.com/watch?v=${entry.providerId}" else entry.mediaPath
+                                if (!link.isNullOrBlank()) runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, link)
+                                    }.let { Intent.createChooser(it, "Compartir vídeo") })
+                                }
+                            }) { Text("Compartir", color = colors.accent, fontSize = 11.sp) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistManagerScreen(
+    colors: MusicColors,
+    padding: PaddingValues,
+    repository: MusicLibraryRepository
+) {
+    val localLists by repository.playlists.collectAsState(initial = emptyList())
+    var name by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var invitePlaylistId by rememberSaveable { mutableStateOf("") }
+    var inviteUserId by rememberSaveable { mutableStateOf("") }
+    var cloudLists by remember { mutableStateOf<List<CloudPlaylistDto>>(emptyList()) }
+    var message by rememberSaveable { mutableStateOf("Las listas locales funcionan sin cuenta.") }
+    var busy by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text("Tus listas", color = colors.text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text("Crea colecciones privadas o listas colaborativas.", color = colors.muted, fontSize = 12.sp)
+        }
+        item {
+            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(15.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("Nueva lista", color = colors.text, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descripción (opcional)") }, modifier = Modifier.fillMaxWidth())
+                Button(onClick = {
+                    scope.launch {
+                        runCatching { repository.createPlaylist(name, description) }
+                            .onSuccess { name = ""; description = ""; message = "Lista guardada en este dispositivo." }
+                            .onFailure { message = "No se pudo crear la lista." }
+                    }
+                }, enabled = name.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Crear lista local") }
+                Button(onClick = {
+                    if (!busy) {
+                        busy = true
+                        scope.launch {
+                            runCatching { MusicCloudPlaylistRepository.create(name, description, true) }
+                                .onSuccess { name = ""; description = ""; message = "Lista colaborativa creada en la nube." }
+                                .onFailure { message = it.message ?: "Inicia sesión para crear listas compartidas." }
+                            busy = false
+                        }
+                    }
+                }, enabled = name.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (busy) "Creando…" else "Crear lista colaborativa")
+                }
+            }
+        }
+        item { Text(message, color = colors.muted, fontSize = 11.sp) }
+        item { Text("En este dispositivo", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp) }
+        if (localLists.isEmpty()) item { Text("Aún no tienes listas locales.", color = colors.muted, fontSize = 12.sp) }
+        items(localLists, key = { it.id }) { list ->
+            Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surface).padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.PlaylistPlay, contentDescription = null, tint = colors.accent)
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(list.name, color = colors.text, fontWeight = FontWeight.SemiBold)
+                    Text(list.description.ifBlank { "Lista local" }, color = colors.muted, fontSize = 11.sp)
+                }
+            }
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Listas compartidas", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    scope.launch {
+                        runCatching { MusicCloudPlaylistRepository.loadMyPlaylists() }
+                            .onSuccess { cloudLists = it; message = "Listas de la nube actualizadas." }
+                            .onFailure { message = "Inicia sesión para consultar las listas compartidas." }
+                    }
+                }) { Text("Actualizar", color = colors.accent) }
+            }
+        }
+        if (cloudLists.isEmpty()) item { Text("Inicia sesión y pulsa Actualizar para ver tus listas compartidas.", color = colors.muted, fontSize = 12.sp) }
+        items(cloudLists, key = { "cloud-${it.id}" }) { list ->
+            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surface).padding(14.dp)) {
+                Text(list.name, color = colors.text, fontWeight = FontWeight.SemiBold)
+                Text(if (list.isCollaborative) "Colaborativa · ID: ${list.id}" else "Privada · ID: ${list.id}",
+                    color = colors.muted, fontSize = 10.sp)
+            }
+        }
+        item {
+            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(15.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Invitar colaborador", color = colors.text, fontWeight = FontWeight.Bold)
+                Text("El propietario puede invitar usando el ID de usuario de Supabase.", color = colors.muted, fontSize = 11.sp)
+                OutlinedTextField(value = invitePlaylistId, onValueChange = { invitePlaylistId = it }, label = { Text("ID de la lista") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = inviteUserId, onValueChange = { inviteUserId = it }, label = { Text("ID de usuario") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Button(onClick = {
+                    scope.launch {
+                        runCatching { MusicCloudPlaylistRepository.invite(invitePlaylistId.trim(), inviteUserId.trim(), "editor") }
+                            .onSuccess { message = "Colaborador añadido como editor." }
+                            .onFailure { message = it.message ?: "No se pudo invitar. Comprueba que seas propietario." }
+                    }
+                }, enabled = invitePlaylistId.isNotBlank() && inviteUserId.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                    Text("Invitar como editor")
+                }
+            }
         }
     }
 }
