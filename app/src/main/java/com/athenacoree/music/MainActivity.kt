@@ -722,7 +722,7 @@ private fun ProfileScreen(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Ahorro de datos", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text("Preferir contenido ligero cuando esté disponible", color = colors.muted, fontSize = 11.sp)
+                Text("Preferencia guardada; optimización automática pendiente", color = colors.muted, fontSize = 11.sp)
             }
             Switch(
                 checked = dataSaver,
