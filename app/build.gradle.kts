@@ -56,6 +56,7 @@ dependencies {
     // Supabase Kotlin SDK: public catalog access for the first integration stage.
     implementation(platform("io.github.jan-tennert.supabase:bom:3.9.0"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.ktor:ktor-client-android:3.4.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
