@@ -1,6 +1,8 @@
 package com.athenacoree.music
 
 import android.os.Bundle
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.collectAsState
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -95,7 +97,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MusicApp() {
-    var darkMode by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val darkMode by MusicPreferences.darkMode(context).collectAsState(initial = false)
+    val changeTheme = { scope.launch { MusicPreferences.setDarkMode(context, !darkMode) } }
     var selectedTab by rememberSaveable { mutableStateOf(MusicTab.Home.name) }
     val tab = MusicTab.valueOf(selectedTab)
 
@@ -132,7 +137,7 @@ private fun MusicApp() {
                     MusicTopBar(
                         colors = colors,
                         darkMode = darkMode,
-                        onThemeChange = { darkMode = !darkMode }
+                        onThemeChange = changeTheme
                     )
                 },
                 bottomBar = {
@@ -159,7 +164,7 @@ private fun MusicApp() {
                         colors, padding, "Mis listas", "Crea listas personales o compártelas cuando quieras.",
                         Icons.Default.PlaylistPlay
                     )
-                    MusicTab.Profile -> ProfileScreen(colors, padding, darkMode, onThemeChange = { darkMode = !darkMode })
+                    MusicTab.Profile -> ProfileScreen(colors, padding, darkMode, onThemeChange = changeTheme)
                 }
             }
         }
@@ -273,8 +278,7 @@ private fun FeaturedCard(colors: MusicColors) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
             Text("TU BIBLIOTECA EMPIEZA AQUÍ", color = Color.White.copy(alpha = .8f), fontSize = 10.sp, letterSpacing = 1.5.sp)
-            Text("Dale espacio
-a lo que te mueve.", color = Color.White, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+            Text("Dale espacio\\na lo que te mueve.", color = Color.White, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
             Row(
                 modifier = Modifier
                     .clip(CircleShape)
