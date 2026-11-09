@@ -1,6 +1,8 @@
 package com.athenacoree.music
 
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Email/password account actions. Supabase handles password hashing and tokens.
@@ -11,6 +13,7 @@ internal object MusicAuthRepository {
         MusicSupabase.client.gotrue.signUpWith(Email) {
             this.email = email
             this.password = password
+            data = buildJsonObject { put("app", "music") }
         }
     }
 
