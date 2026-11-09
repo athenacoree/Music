@@ -1,6 +1,8 @@
 package com.athenacoree.music
 
 import android.os.Bundle
+import android.Manifest
+import android.os.Build
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -368,6 +370,18 @@ private fun LibraryScreen(
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var scanStatus by rememberSaveable { mutableStateOf("Primero se importan 5 canciones; luego puedes continuar por tandas.") }
+    val scanPermission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
+    val scanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) scope.launch {
+            runCatching { MusicDeviceScanner.scanNextAudioBatch(context, repository) }
+                .onSuccess { result ->
+                    scanStatus = if (result.imported == 0) "No quedan más canciones." else
+                        "Se añadieron ${result.imported} canciones. " + if (result.hasMore) "Puedes importar las siguientes 5." else "Exploración completada."
+                }
+                .onFailure { scanStatus = "No se pudo explorar: ${it.message ?: "error"}" }
+        } else scanStatus = "Permiso de música no concedido."
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -434,6 +448,14 @@ private fun LibraryScreen(
                 Icon(Icons.Default.MusicNote, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Añadir archivos del dispositivo")
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Button(onClick = { scanLauncher.launch(scanPermission) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Explorar dispositivo · siguiente 5")
+                }
+                Text(scanStatus, color = colors.muted, fontSize = 11.sp)
             }
         }
         item {
