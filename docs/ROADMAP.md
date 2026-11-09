@@ -23,7 +23,7 @@
 
 - [x] Reuse the existing Interaccion Supabase project without changing its existing tables.
 - [x] Apply Music schema and security migrations `0001` through `0004`.
-- [ ] Create Firebase FCM project/app registration (no Firebase Auth or Firestore required).
+- [ ] Create Firebase Android app registration and add its configuration file (no Firebase Auth or Firestore required).
 - [ ] Add FCM token lifecycle, notification channels and Android 13+ permission handling.
-- [ ] Deploy Supabase push Edge Function, configure secrets and Database Webhook.
+- [x] Deploy the secured Supabase push Edge Function.\n- [ ] Configure Firebase service-account and webhook secrets, then connect the Database Webhook.
 - [x] Add signed-in in-app notification inbox.\n- [ ] Add FCM device-token registration, notification channels and deep-link routing after Firebase app configuration is supplied.
