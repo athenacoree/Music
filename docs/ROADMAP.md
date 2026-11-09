@@ -18,6 +18,8 @@
 - [ ] Add Android share intents and official YouTube player handoff.
 - [ ] Add data-saver and storage controls.
 - [ ] Test offline behavior and remote-service failure behavior.
+- [ ] Confirm the new GitHub Actions Android compile workflow passes.
+- [ ] Test registration, email confirmation, sign-in, session restoration and sign-out on a real Android device.
 
 - [x] Reuse the existing Interaccion Supabase project without changing its existing tables.
 - [x] Apply Music schema and security migrations `0001` through `0004`.
