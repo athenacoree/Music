@@ -441,31 +441,23 @@ private fun LibraryScreen(
             )
         }
         item {
-            Button(
-                onClick = { filePicker.launch(arrayOf("audio/*")) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = { filePicker.launch(arrayOf("audio/*")) }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.MusicNote, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Añadir archivos del dispositivo")
+            }
+        }
         item {
-            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surface).padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surface).padding(15.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text("Exploración inteligente", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text("Canciones y vídeos se incorporan en tandas de cinco, sin cargar todo de golpe.", color = colors.muted, fontSize = 12.sp)
+                Text("Music lee canciones y vídeos en tandas de cinco, para no cargar toda la biblioteca de golpe.", color = colors.muted, fontSize = 12.sp)
                 Text(scanStatus, color = colors.muted, fontSize = 11.sp)
                 Button(onClick = { scanLauncher.launch(scanPermissions) }, modifier = Modifier.fillMaxWidth()) {
                     Text("Leer los siguientes 5 archivos")
                 }
-            }
-        }
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Button(onClick = { scanLauncher.launch(scanPermission) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Explorar dispositivo · siguiente 5")
-                }
-                Text(scanStatus, color = colors.muted, fontSize = 11.sp)
             }
         }
         item {
