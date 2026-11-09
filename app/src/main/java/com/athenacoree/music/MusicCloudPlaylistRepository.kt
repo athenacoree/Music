@@ -1,0 +1,56 @@
+package com.athenacoree.music
+
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.rpc
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+internal data class CloudPlaylistDto(
+    val id: String,
+    @SerialName("owner_id") val ownerId: String,
+    val name: String,
+    val description: String? = null,
+    @SerialName("is_collaborative") val isCollaborative: Boolean = false
+)
+
+@Serializable
+private data class CloudPlaylistInsert(
+    @SerialName("owner_id") val ownerId: String,
+    val name: String,
+    val description: String,
+    @SerialName("is_collaborative") val isCollaborative: Boolean
+)
+
+@Serializable
+private data class InviteMemberParams(
+    @SerialName("p_playlist_id") val playlistId: String,
+    @SerialName("p_user_id") val userId: String,
+    @SerialName("p_role") val role: String
+)
+
+internal object MusicCloudPlaylistRepository {
+    suspend fun loadMyPlaylists(): List<CloudPlaylistDto> {
+        val userId = MusicSupabase.client.gotrue.currentSessionOrNull()?.user?.id
+            ?: return emptyList()
+        return MusicSupabase.client.from("playlists").select()
+            .decodeList<CloudPlaylistDto>()
+            .filter { it.ownerId == userId || it.isCollaborative }
+    }
+
+    suspend fun create(name: String, description: String, collaborative: Boolean) {
+        val userId = MusicSupabase.client.gotrue.currentSessionOrNull()?.user?.id
+            ?: error("Inicia sesión para crear una lista compartida.")
+        MusicSupabase.client.from("playlists").insert(
+            CloudPlaylistInsert(userId, name.trim(), description.trim(), collaborative)
+        )
+    }
+
+    suspend fun invite(playlistId: String, userId: String, role: String) {
+        require(role == "viewer" || role == "editor")
+        MusicSupabase.client.postgrest.rpc(
+            "music_invite_playlist_member",
+            InviteMemberParams(playlistId, userId, role)
+        )
+    }
+}
