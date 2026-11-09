@@ -46,3 +46,8 @@ Supabase's official guide documents this pattern using Database Webhooks, Edge F
 - Store the FCM service-account credential as a Supabase secret.
 - Deploy the Edge Function and configure a Database Webhook.
 - Test foreground, background, force-stopped, denied-permission and token-refresh cases on a real Android device.
+
+
+## Current integration boundary
+
+The signed-in in-app inbox is implemented against the recipient-only `notifications` RLS policy. FCM delivery is not activated yet: the project still needs a Firebase Android app registration and service-account credentials stored as Supabase Edge Function secrets. Do not place Firebase service-account material in the Android app or GitHub repository. Until those credentials and the webhook are configured, push delivery cannot be claimed as working.
