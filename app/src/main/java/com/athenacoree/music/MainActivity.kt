@@ -460,6 +460,20 @@ private fun LibraryScreen(
                 }
             }
         }
+        if (visibleTracks.any { it.mediaUri != null && it.source != "device-video" }) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = { MusicPlaybackController.previous(context) }) { Text("Anterior", color = colors.accent, fontSize = 11.sp) }
+                    TextButton(onClick = { MusicPlaybackController.pause(context) }) { Text("Pausa", color = colors.text, fontWeight = FontWeight.Bold) }
+                    TextButton(onClick = { MusicPlaybackController.resume(context) }) { Text("Continuar", color = colors.accent, fontWeight = FontWeight.Bold) }
+                    TextButton(onClick = { MusicPlaybackController.next(context) }) { Text("Siguiente", color = colors.accent, fontSize = 11.sp) }
+                }
+            }
+        }
         item {
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -541,7 +555,7 @@ private fun LibraryScreen(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(track.title, color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("Archivo del dispositivo", color = colors.muted, fontSize = 11.sp)
+                        Text(if (track.source == "device-video") "Vídeo del dispositivo" else if (track.source == "device-audio" || track.source == "device") track.artistName.ifBlank { "Audio local" } else "Catálogo", color = colors.muted, fontSize = 11.sp)
                     }
                     TextButton(onClick = {
                         scope.launch { repository.setFavorite(track.id, !track.isFavorite) }
