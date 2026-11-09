@@ -24,11 +24,11 @@ android {
 
     signingConfigs {
         create("release") {
-            val storeFilePath = System.getenv("ANDROID_KEYSTORE_FILE")
+            val storeFilePath = System.getenv("MUSIC_KEYSTORE_FILE")
             if (!storeFilePath.isNullOrBlank()) storeFile = file(storeFilePath)
-            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            storePassword = System.getenv("MUSIC_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("MUSIC_KEY_ALIAS")
+            keyPassword = System.getenv("MUSIC_KEY_PASSWORD")
         }
     }
 
