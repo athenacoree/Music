@@ -29,6 +29,9 @@ data class LocalTrackEntity(
     val addedAt: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "catalog_entries", indices = [Index(value = ["kind"]), Index(value = ["updatedAt"])])
+data class CatalogEntryEntity(@PrimaryKey val id: String, val kind: String, val title: String, val subtitle: String = "", val imagePath: String? = null, val provider: String? = null, val providerId: String? = null, val mediaPath: String? = null, val version: Long = 1, val updatedAt: String = "")
+
 @Entity(tableName = "local_playlists")
 data class LocalPlaylistEntity(
     @PrimaryKey val id: String,
@@ -82,6 +85,26 @@ interface MusicLibraryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addTrackToPlaylist(item: LocalPlaylistTrackEntity)
 
+    @Query("SELECT * FROM catalog_entries WHERE kind = :kind ORDER BY title COLLATE NOCASE")
+    fun observeCatalog(kind: String): Flow<List<CatalogEntryEntity>>
+
+    @Query("SELECT * FROM catalog_entries WHERE kind = :kind ORDER BY title COLLATE NOCASE")
+    suspend fun getCatalog(kind: String): List<CatalogEntryEntity>
+
+    @Query("""
+        INSERT INTO catalog_entries(id, kind, title, subtitle, imagePath, provider, providerId, mediaPath, version, updatedAt)
+        VALUES(:id, :kind, :title, :subtitle, :imagePath, :provider, :providerId, :mediaPath, :version, :updatedAt)
+        ON CONFLICT(id) DO UPDATE SET
+            kind = excluded.kind, title = excluded.title, subtitle = excluded.subtitle,
+            imagePath = excluded.imagePath, provider = excluded.provider,
+            providerId = excluded.providerId, mediaPath = excluded.mediaPath,
+            version = excluded.version, updatedAt = excluded.updatedAt
+        WHERE excluded.version >= catalog_entries.version
+    """)
+    suspend fun upsertCatalogEntry(id: String, kind: String, title: String, subtitle: String,
+        imagePath: String?, provider: String?, providerId: String?, mediaPath: String?,
+        version: Long, updatedAt: String)
+
     @Query("SELECT * FROM local_playlists ORDER BY updatedAt DESC")
     fun observePlaylists(): Flow<List<LocalPlaylistEntity>>
 
@@ -93,14 +116,21 @@ interface MusicLibraryDao {
 }
 
 @Database(
-    entities = [LocalTrackEntity::class, LocalPlaylistEntity::class, LocalPlaylistTrackEntity::class],
-    version = 1,
+    entities = [LocalTrackEntity::class, LocalPlaylistEntity::class, LocalPlaylistTrackEntity::class, CatalogEntryEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {
     abstract fun libraryDao(): MusicLibraryDao
 
     companion object {
+        private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS catalog_entries (id TEXT NOT NULL PRIMARY KEY, kind TEXT NOT NULL, title TEXT NOT NULL, subtitle TEXT NOT NULL, imagePath TEXT, provider TEXT, providerId TEXT, mediaPath TEXT, version INTEGER NOT NULL, updatedAt TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_catalog_entries_kind ON catalog_entries(kind)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_catalog_entries_updatedAt ON catalog_entries(updatedAt)")
+            }
+        }
         @Volatile private var INSTANCE: MusicDatabase? = null
 
         fun getInstance(context: Context): MusicDatabase =
@@ -109,7 +139,7 @@ abstract class MusicDatabase : RoomDatabase() {
                     context.applicationContext,
                     MusicDatabase::class.java,
                     "music-library.db"
-                ).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
             }
     }
 }
