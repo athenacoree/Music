@@ -1,6 +1,7 @@
 package com.athenacoree.music
 
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.Serializable
 
 internal data class CatalogSummary(
@@ -32,7 +33,7 @@ internal object MusicCatalogRepository {
     private suspend fun countRows(table: String): Int {
         return MusicSupabase.client
             .from(table)
-            .select()
+            .select(columns = Columns.list("id"))
             .decodeList<CatalogId>()
             .size
     }
