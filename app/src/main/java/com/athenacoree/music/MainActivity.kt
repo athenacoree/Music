@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -65,6 +67,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class MusicTab(val label: String, val icon: ImageVector) {
     Home("Inicio", Icons.Default.Home),
@@ -432,6 +437,10 @@ private fun ProfileScreen(
     darkMode: Boolean,
     onThemeChange: () -> Unit
 ) {
+    var cloudStatus by rememberSaveable { mutableStateOf("Aún no comprobada") }
+    var checkingCloud by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier.fillMaxSize().padding(padding).padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -450,6 +459,34 @@ private fun ProfileScreen(
                 Text("Estás usando Music como invitado", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text("No necesitas una cuenta para empezar", color = colors.muted, fontSize = 11.sp)
             }
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surface).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Text("Conexión con la nube", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text("Music consulta el catálogo público de Supabase. Tu biblioteca de invitado sigue siendo local.", color = colors.muted, fontSize = 11.sp, lineHeight = 16.sp)
+            Button(
+                onClick = {
+                    if (!checkingCloud) {
+                        checkingCloud = true
+                        scope.launch {
+                            val result = runCatching {
+                                withContext(Dispatchers.IO) { MusicCatalogRepository.loadSummary() }
+                            }
+                            cloudStatus = result.fold(
+                                onSuccess = { "Conectado · ${it.artists} artistas · ${it.albums} álbumes · ${it.tracks} canciones · ${it.videos} vídeos" },
+                                onFailure = { "No se pudo conectar. Comprueba tu conexión e inténtalo de nuevo." }
+                            )
+                            checkingCloud = false
+                        }
+                    }
+                },
+                enabled = !checkingCloud
+            ) {
+                Text(if (checkingCloud) "Comprobando…" else "Comprobar conexión")
+            }
+            Text(cloudStatus, color = colors.muted, fontSize = 11.sp)
         }
         Text("Preferencias", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Row(
