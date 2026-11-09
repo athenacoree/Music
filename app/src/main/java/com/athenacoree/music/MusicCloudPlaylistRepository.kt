@@ -15,6 +15,14 @@ internal data class CloudPlaylistDto(
 )
 
 @Serializable
+private data class CloudPlaylistItemInsert(
+    @SerialName("playlist_id") val playlistId: String,
+    @SerialName("track_id") val trackId: String,
+    @SerialName("added_by") val addedBy: String,
+    val position: Int = 0
+)
+
+@Serializable
 private data class CloudPlaylistInsert(
     @SerialName("owner_id") val ownerId: String,
     val name: String,
@@ -40,6 +48,14 @@ internal object MusicCloudPlaylistRepository {
             ?: error("Inicia sesión para crear una lista compartida.")
         MusicSupabase.client.from("playlists").insert(
             CloudPlaylistInsert(userId, name.trim(), description.trim(), collaborative)
+        )
+    }
+
+    suspend fun addTrack(playlistId: String, trackId: String) {
+        val userId = MusicSupabase.client.gotrue.currentSessionOrNull()?.user?.id
+            ?: error("Inicia sesión para modificar una lista compartida.")
+        MusicSupabase.client.from("playlist_items").insert(
+            CloudPlaylistItemInsert(playlistId, trackId, userId)
         )
     }
 
