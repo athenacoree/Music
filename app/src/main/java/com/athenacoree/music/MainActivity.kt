@@ -145,7 +145,8 @@ private fun MusicApp() {
                     MusicTopBar(
                         colors = colors,
                         darkMode = darkMode,
-                        onThemeChange = changeTheme
+                        onThemeChange = changeTheme,
+                        onSearch = { selectedTab = MusicTab.Library.name }
                     )
                 },
                 bottomBar = {
@@ -185,7 +186,7 @@ private data class MusicColors(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MusicTopBar(colors: MusicColors, darkMode: Boolean, onThemeChange: () -> Unit) {
+private fun MusicTopBar(colors: MusicColors, darkMode: Boolean, onThemeChange: () -> Unit, onSearch: () -> Unit) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,7 +214,7 @@ private fun MusicTopBar(colors: MusicColors, darkMode: Boolean, onThemeChange: (
                     tint = colors.text
                 )
             }
-            IconButton(onClick = {}) {
+            IconButton(onClick = onSearch) {
                 Icon(Icons.Default.Search, contentDescription = "Buscar", tint = colors.text)
             }
         },
@@ -361,6 +362,7 @@ private fun LibraryScreen(
     repository: MusicLibraryRepository
 ) {
     var filter by rememberSaveable { mutableStateOf("Todo") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val filters = listOf("Todo", "Favoritos")
     val tracks by repository.tracks.collectAsState(initial = emptyList())
     val favorites by repository.favorites.collectAsState(initial = emptyList())
@@ -399,7 +401,11 @@ private fun LibraryScreen(
         }
     }
 
-    val visibleTracks = if (filter == "Favoritos") favorites else tracks
+    val baseTracks = if (filter == "Favoritos") favorites else tracks
+    val visibleTracks = baseTracks.filter {
+        searchQuery.isBlank() || it.title.contains(searchQuery, ignoreCase = true) ||
+            it.artistName.contains(searchQuery, ignoreCase = true)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(padding),
@@ -409,6 +415,16 @@ private fun LibraryScreen(
         item {
             Text("Biblioteca", color = colors.text, fontSize = 27.sp, fontWeight = FontWeight.Bold)
             Text("Tu colección local, disponible sin conexión.", color = colors.muted, fontSize = 13.sp)
+        }
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Buscar en tu biblioteca") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+            )
         }
         item {
             Button(
@@ -494,6 +510,17 @@ private fun LibraryScreen(
                     }) {
                         Text(if (track.isFavorite) "♥" else "♡", color = colors.accent, fontSize = 19.sp)
                     }
+                    TextButton(onClick = {
+                        val shareText = track.mediaUri ?: track.title
+                        runCatching {
+                            context.startActivity(Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                }, "Compartir canción"
+                            ))
+                        }
+                    }) { Text("↗", color = colors.accent, fontSize = 17.sp) }
                 }
             }
         }
