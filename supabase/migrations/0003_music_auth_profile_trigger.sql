@@ -8,6 +8,10 @@ security definer
 set search_path = ''
 as $function$
 begin
+  if (new.raw_user_meta_data ->> 'app') is distinct from 'music' then
+    return new;
+  end if;
+
   insert into public.music_profiles (id, display_name)
   values (
     new.id,
