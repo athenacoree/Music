@@ -2,6 +2,7 @@ package com.athenacoree.music
 
 import android.os.Bundle
 import android.content.Intent
+import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -475,7 +476,9 @@ private fun LibraryScreen(
             items(visibleTracks, key = { it.id }) { track ->
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                        .background(colors.surface).padding(13.dp),
+                        .background(colors.surface).clickable {
+                            track.mediaUri?.let { MusicPlaybackController.play(context, Uri.parse(it), track.title) }
+                        }.padding(13.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
