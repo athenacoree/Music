@@ -1,6 +1,10 @@
 package com.athenacoree.music
 
 import android.os.Bundle
+import android.content.Intent
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.collectAsState
 import androidx.activity.ComponentActivity
@@ -101,6 +105,7 @@ private fun MusicApp() {
     val scope = rememberCoroutineScope()
     val darkMode by MusicPreferences.darkMode(context).collectAsState(initial = false)
     val changeTheme = { scope.launch { MusicPreferences.setDarkMode(context, !darkMode) } }
+    val libraryRepository = remember { MusicLibraryRepository(MusicDatabase.getInstance(context).libraryDao()) }
     var selectedTab by rememberSaveable { mutableStateOf(MusicTab.Home.name) }
     val tab = MusicTab.valueOf(selectedTab)
 
@@ -155,7 +160,7 @@ private fun MusicApp() {
             ) { padding ->
                 when (tab) {
                     MusicTab.Home -> HomeScreen(colors, padding)
-                    MusicTab.Library -> LibraryScreen(colors, padding)
+                    MusicTab.Library -> LibraryScreen(colors, padding, libraryRepository)
                     MusicTab.Videos -> SimpleSectionScreen(
                         colors, padding, "Vídeos", "Tus vídeos y colecciones en un solo lugar.",
                         Icons.Default.VideoLibrary
@@ -353,17 +358,70 @@ private fun LibraryShortcut(title: String, subtitle: String, icon: ImageVector, 
 }
 
 @Composable
-private fun LibraryScreen(colors: MusicColors, padding: PaddingValues) {
+private fun LibraryScreen(
+    colors: MusicColors,
+    padding: PaddingValues,
+    repository: MusicLibraryRepository
+) {
     var filter by rememberSaveable { mutableStateOf("Todo") }
-    val filters = listOf("Todo", "Artistas", "Álbumes", "Canciones")
+    val filters = listOf("Todo", "Favoritos")
+    val tracks by repository.tracks.collectAsState(initial = emptyList())
+    val favorites by repository.favorites.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        uris.forEach { uri ->
+            scope.launch {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+                val displayName = context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                } ?: "Archivo de audio"
+                repository.addTrack(
+                    LocalTrackEntity(
+                        id = uri.toString(),
+                        title = displayName.substringBeforeLast('.', displayName),
+                        mediaUri = uri.toString(),
+                        source = "device"
+                    )
+                )
+            }
+        }
+    }
+
+    val visibleTracks = if (filter == "Favoritos") favorites else tracks
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(padding),
         contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(17.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Text("Biblioteca", color = colors.text, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-            Text("Tu colección, en una sola vista.", color = colors.muted, fontSize = 13.sp)
+            Text("Tu colección local, disponible sin conexión.", color = colors.muted, fontSize = 13.sp)
+        }
+        item {
+            Button(
+                onClick = { filePicker.launch(arrayOf("audio/*")) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.MusicNote, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Añadir archivos del dispositivo")
+            }
         }
         item {
             Row(
@@ -388,31 +446,57 @@ private fun LibraryScreen(colors: MusicColors, padding: PaddingValues) {
                 }
             }
         }
-        item {
-            Column(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.surface).padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = colors.accent, modifier = Modifier.size(30.dp))
-                Text("Tu colección está lista para crecer", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        if (visibleTracks.isEmpty()) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+                        .background(colors.surface).padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = colors.accent, modifier = Modifier.size(30.dp))
+                    Text(
+                        if (filter == "Favoritos") "Todavía no tienes favoritos" else "Tu biblioteca está vacía",
+                        color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp
+                    )
+                    Text(
+                        "Añade archivos de audio que tengas en el dispositivo. Music guardará sus referencias para encontrarlos incluso sin conexión.",
+                        color = colors.muted, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                }
+            }
+        } else {
+            item {
                 Text(
-                    "Añade artistas, álbumes y canciones. Music guardará la información localmente para que puedas consultarla incluso sin conexión.",
+                    "${visibleTracks.size} elemento(s)",
                     color = colors.muted,
-                    fontSize = 13.sp,
-                    lineHeight = 19.sp
+                    fontSize = 12.sp
                 )
             }
-        }
-        item { Text("Accesos rápidos", color = colors.text, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
-        items(
-            when (filter) {
-                "Artistas" -> listOf("Artistas" to Icons.Default.Person)
-                "Álbumes" -> listOf("Álbumes" to Icons.Default.Album)
-                "Canciones" -> listOf("Canciones" to Icons.Default.MusicNote)
-                else -> listOf("Artistas" to Icons.Default.Person, "Álbumes" to Icons.Default.Album, "Canciones" to Icons.Default.MusicNote)
+            items(visibleTracks, key = { it.id }) { track ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .background(colors.surface).padding(13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                            .background(colors.surfaceAlt),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = colors.accent)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(track.title, color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Archivo del dispositivo", color = colors.muted, fontSize = 11.sp)
+                    }
+                    TextButton(onClick = {
+                        scope.launch { repository.setFavorite(track.id, !track.isFavorite) }
+                    }) {
+                        Text(if (track.isFavorite) "♥" else "♡", color = colors.accent, fontSize = 19.sp)
+                    }
+                }
             }
-        ) { entry ->
-            LibraryShortcut(entry.first, "Todavía no hay elementos añadidos", entry.second, colors)
         }
     }
 }
