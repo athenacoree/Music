@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -12,8 +13,12 @@ android {
         applicationId = "com.athenacoree.music"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+
+        // Publishable key: safe for client apps. Never put a Supabase secret/service_role key here.
+        buildConfigField("String", "SUPABASE_URL", "\"https://wlbnulfixkfmvcifvpum.supabase.co\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"sb_publishable_rs8AM2PluCPJD1P4fhBznw_SrZSDh4F\"")
     }
 
     buildFeatures {
@@ -47,6 +52,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.7")
+
+    // Supabase Kotlin SDK: public catalog access for the first integration stage.
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.9.0"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.ktor:ktor-client-android:3.4.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
