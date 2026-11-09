@@ -31,11 +31,8 @@ private data class InviteMemberParams(
 
 internal object MusicCloudPlaylistRepository {
     suspend fun loadMyPlaylists(): List<CloudPlaylistDto> {
-        val userId = MusicSupabase.client.gotrue.currentSessionOrNull()?.user?.id
-            ?: return emptyList()
-        return MusicSupabase.client.from("playlists").select()
-            .decodeList<CloudPlaylistDto>()
-            .filter { it.ownerId == userId || it.isCollaborative }
+        if (MusicSupabase.client.gotrue.currentSessionOrNull() == null) return emptyList()
+        return MusicSupabase.client.from("playlists").select().decodeList<CloudPlaylistDto>()
     }
 
     suspend fun create(name: String, description: String, collaborative: Boolean) {
