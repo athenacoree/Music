@@ -39,7 +39,17 @@ android {
         }
     }
 
-    buildFeatures {
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("MUSIC_KEYSTORE_FILE") ?: "missing-release-keystore.p12")
+            storePassword = System.getenv("MUSIC_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("MUSIC_KEY_ALIAS")
+            keyPassword = System.getenv("MUSIC_KEY_PASSWORD")
+            storeType = "PKCS12"
+        }
+    }
+
+    buildTypes {\n        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")\n            isMinifyEnabled = false\n        }\n    }\n\n    buildFeatures {
         compose = true
         buildConfig = true
     }
