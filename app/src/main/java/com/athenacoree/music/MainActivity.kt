@@ -163,7 +163,7 @@ private fun MusicApp() {
                 }
             ) { padding ->
                 when (tab) {
-                    MusicTab.Home -> HomeScreen(colors, padding)
+                    MusicTab.Home -> HomeScreen(colors, padding) { selectedTab = MusicTab.Videos.name }
                     MusicTab.Library -> LibraryScreen(colors, padding, libraryRepository)
                     MusicTab.Videos -> CatalogBrowserScreen(colors, padding, libraryRepository)
                     MusicTab.Playlists -> PlaylistManagerScreen(colors, padding, libraryRepository)
@@ -223,7 +223,7 @@ private fun MusicTopBar(colors: MusicColors, darkMode: Boolean, onThemeChange: (
 }
 
 @Composable
-private fun HomeScreen(colors: MusicColors, padding: PaddingValues) {
+private fun HomeScreen(colors: MusicColors, padding: PaddingValues, onExplore: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(padding),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 28.dp),
@@ -236,7 +236,7 @@ private fun HomeScreen(colors: MusicColors, padding: PaddingValues) {
             }
         }
         item {
-            FeaturedCard(colors)
+            FeaturedCard(colors, onExplore)
         }
         item {
             SectionHeader("Escuchado recientemente", "Ver todo", colors)
@@ -267,7 +267,7 @@ private fun HomeScreen(colors: MusicColors, padding: PaddingValues) {
 }
 
 @Composable
-private fun FeaturedCard(colors: MusicColors) {
+private fun FeaturedCard(colors: MusicColors, onExplore: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -286,7 +286,7 @@ private fun FeaturedCard(colors: MusicColors) {
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(Color.White)
-                    .clickable { }
+                    .clickable { onExplore() }
                     .padding(horizontal = 15.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -563,6 +563,7 @@ private fun CatalogBrowserScreen(
     val entries by repository.catalog(kind).collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val dataSaver by MusicPreferences.dataSaver(context).collectAsState(initial = false)
     val kinds = listOf("video" to "Vídeos", "artist" to "Artistas", "album" to "Álbumes", "track" to "Canciones")
 
     Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp)) {
@@ -626,7 +627,7 @@ private fun CatalogBrowserScreen(
                             }.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (!entry.imagePath.isNullOrBlank()) {
+                        if (!dataSaver && !entry.imagePath.isNullOrBlank()) {
                             AsyncImage(
                                 model = if (entry.imagePath.startsWith("http")) entry.imagePath
                                     else "${BuildConfig.SUPABASE_URL}/storage/v1/object/public/music-artwork/${entry.imagePath.trimStart('/')}",
@@ -1044,7 +1045,7 @@ private fun ProfileScreen(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Ahorro de datos", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text("Preferencia guardada; optimización automática pendiente", color = colors.muted, fontSize = 11.sp)
+                Text("Reduce el consumo ocultando portadas y miniaturas", color = colors.muted, fontSize = 11.sp)
             }
             Switch(
                 checked = dataSaver,
@@ -1073,7 +1074,7 @@ private fun ProfileScreen(
             Spacer(Modifier.width(12.dp))
             Column {
                 Text("Almacenamiento y caché", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text("Gestión inteligente próximamente", color = colors.muted, fontSize = 11.sp)
+                Text("Caché de portadas limitada a 48 MB", color = colors.muted, fontSize = 11.sp)
             }
         }
     }
