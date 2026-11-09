@@ -370,17 +370,17 @@ private fun LibraryScreen(
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var scanStatus by rememberSaveable { mutableStateOf("Primero se importan 5 canciones; luego puedes continuar por tandas.") }
-    val scanPermission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
-    val scanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) scope.launch {
-            runCatching { MusicDeviceScanner.scanNextAudioBatch(context, repository) }
+    var scanStatus by rememberSaveable { mutableStateOf("Primero se importan 5 archivos; luego puedes continuar por tandas.") }
+    val scanPermissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO) else arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    val scanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        if (grants.values.any { it }) scope.launch {
+            runCatching { MusicDeviceScanner.scanNextMediaBatch(context, repository) }
                 .onSuccess { result ->
-                    scanStatus = if (result.imported == 0) "No quedan más canciones." else
-                        "Se añadieron ${result.imported} canciones. " + if (result.hasMore) "Puedes importar las siguientes 5." else "Exploración completada."
+                    scanStatus = if (result.imported == 0) "No quedan más archivos multimedia." else
+                        "Se añadieron ${result.imported} archivos. " + if (result.hasMore) "Puedes importar los siguientes cinco." else "Exploración completada."
                 }
                 .onFailure { scanStatus = "No se pudo explorar: ${it.message ?: "error"}" }
-        } else scanStatus = "Permiso de música no concedido."
+        } else scanStatus = "Permiso para leer audio y vídeo no concedido."
     }
 
     val filePicker = rememberLauncherForActivityResult(
@@ -448,6 +448,16 @@ private fun LibraryScreen(
                 Icon(Icons.Default.MusicNote, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Añadir archivos del dispositivo")
+        item {
+            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surface).padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Exploración inteligente", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Canciones y vídeos se incorporan en tandas de cinco, sin cargar todo de golpe.", color = colors.muted, fontSize = 12.sp)
+                Text(scanStatus, color = colors.muted, fontSize = 11.sp)
+                Button(onClick = { scanLauncher.launch(scanPermissions) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Leer los siguientes 5 archivos")
+                }
+            }
+        }
             }
         }
         item {
