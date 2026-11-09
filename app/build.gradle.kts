@@ -60,6 +60,10 @@ dependencies {
     kapt("androidx.room:room-compiler:2.7.2")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
 
+    // Native playback for user-owned or otherwise authorized media only.
+    implementation("androidx.media3:media3-exoplayer:1.6.1")
+    implementation("androidx.media3:media3-session:1.6.1")
+
     // Supabase Kotlin SDK: public catalog access for the first integration stage.
     implementation(platform("io.github.jan-tennert.supabase:bom:3.9.0"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
