@@ -1,5 +1,6 @@
 package com.athenacoree.music
 
+import io.github.jan.supabase.postgrest.from
 import kotlinx.serialization.Serializable
 
 internal data class CatalogSummary(
