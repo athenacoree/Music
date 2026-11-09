@@ -58,6 +58,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -544,6 +545,8 @@ private fun ProfileScreen(
     var authMessage by rememberSaveable { mutableStateOf("") }
     var authLoading by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val dataSaver by MusicPreferences.dataSaver(context).collectAsState(initial = false)
 
     LaunchedEffect(Unit) {
         MusicSupabase.client.gotrue.sessionStatus.collect { status ->
@@ -712,6 +715,22 @@ private fun ProfileScreen(
         }
 
         Text("Preferencias", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(colors.surface).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Ahorro de datos", color = colors.text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Preferir contenido ligero cuando esté disponible", color = colors.muted, fontSize = 11.sp)
+            }
+            Switch(
+                checked = dataSaver,
+                onCheckedChange = { enabled ->
+                    scope.launch { MusicPreferences.setDataSaver(context, enabled) }
+                }
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surface).clickable { onThemeChange() }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
